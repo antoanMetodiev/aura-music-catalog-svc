@@ -373,6 +373,29 @@ public class CatalogService {
                 ref -> metadata.getTrack(ref.providerResourceId()).map(store::upsertTrack).orElse(local));
     }
 
+    /**
+     * Batch reads for service-to-service callers that hold our ids (library-svc hydrating a
+     * playlist). Local only — never a provider call — and in the order asked; unknown ids are
+     * simply left out.
+     */
+    public List<Track> getTracks(List<UUID> ids) {
+        return inOrder(ids, store.findTracksByIds(ids), Track::id);
+    }
+
+    public List<Album> getAlbums(List<UUID> ids) {
+        return inOrder(ids, store.findAlbumsByIds(ids), Album::id);
+    }
+
+    public List<Artist> getArtists(List<UUID> ids) {
+        return inOrder(ids, store.findArtistsByIds(ids), Artist::id).stream().map(this::canonical).toList();
+    }
+
+    private static <T> List<T> inOrder(List<UUID> ids, List<T> found, java.util.function.Function<T, UUID> idOf) {
+        java.util.Map<UUID, T> byId = new java.util.HashMap<>();
+        for (T item : found) byId.put(idOf.apply(item), item);
+        return ids.stream().distinct().map(byId::get).filter(java.util.Objects::nonNull).toList();
+    }
+
     /** Discovery by provider id (e.g. a pasted TIDAL link). Local first, then provider. */
     public Track getTrackByProviderRef(ProviderReference ref) {
         return store.findTrackByProviderRef(ref)

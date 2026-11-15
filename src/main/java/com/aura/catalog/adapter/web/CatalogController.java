@@ -82,6 +82,30 @@ public class CatalogController {
         return mapper.toResponse(catalogService.suggest(query, tracks, artists));
     }
 
+    /** Batch read by id ({@code ?ids=a,b,c}, at most {@value #MAX_BATCH}), local only, in the order given. */
+    @GetMapping("/tracks")
+    public List<TrackResponse> getTracks(@RequestParam("ids") List<UUID> ids) {
+        return catalogService.getTracks(batch(ids)).stream().map(mapper::toResponse).toList();
+    }
+
+    @GetMapping("/albums")
+    public List<AlbumResponse> getAlbums(@RequestParam("ids") List<UUID> ids) {
+        return catalogService.getAlbums(batch(ids)).stream().map(mapper::toFullResponse).toList();
+    }
+
+    @GetMapping("/artists")
+    public List<ArtistResponse> getArtists(@RequestParam("ids") List<UUID> ids) {
+        return catalogService.getArtists(batch(ids)).stream().map(mapper::toFullResponse).toList();
+    }
+
+    private static final int MAX_BATCH = 200;
+
+    private static List<UUID> batch(List<UUID> ids) {
+        if (ids == null || ids.isEmpty()) throw new IllegalArgumentException("'ids' must not be empty");
+        if (ids.size() > MAX_BATCH) throw new IllegalArgumentException("at most " + MAX_BATCH + " ids per request");
+        return ids;
+    }
+
     @GetMapping("/tracks/{id}")
     public TrackResponse getTrack(@PathVariable UUID id) {
         return mapper.toResponse(catalogService.getTrack(id));
